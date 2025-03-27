@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>气泡专注力训练</title>
+    <style>
+        /* 全局样式设置 */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            /* 网页背景图片 - 可替换 */
+            background: url('https://up.enterdesk.com/edpic_source/3d/3c/5c/3d3c5cd58ed74ee221e817ea6bda377d.jpg') no-repeat center center fixed;
+            background-size: cover;
+            overflow: hidden;
+            height: 100vh;
+            transition: transform 0.3s; /* 为震动效果添加过渡 */
+        }
+        
+        /* 游戏容器样式 */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* 开始按钮样式 */
+        #start-button {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            background-color: #3701FF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+        }
+        
+        /* 指令文字样式 - 红色加粗 */
+        #instruction {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 20px;
+            color: red;
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            z-index: 10;
+        }
+        
+        /* 分数显示样式 */
+        #score-display {
+            position: absolute;
+            top: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 5px 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 10;
+        }
+        
+        /* 计时器样式 */
+        #timer {
+            position: absolute;
+            top: 180px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 5px 15px;
+            border-radius: 5px;
+            display: none;
+            z-index: 10;
+        }
+        
+        /* 气泡基础样式 */
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: transform 0.1s;
+            /* 气泡背景图片 - 可替换 */
+            background-image: url('https://www.freepik.com/free-vector/watercolor-bubble-collection_2272709.htm#query=bubble&position=0&from_view=keyword&track=sph');
+            background-size: cover;
+        }
+        
+        /* 气泡悬停效果 */
+        .bubble:hover {
+            transform: scale(1.1);
+        }
+        
+        /* 黄色气泡样式 */
+        .yellow-bubble {
+            background-color: rgba(255, 255, 0, 0.7);
+        }
+        
+        /* 红色气泡样式 */
+        .red-bubble {
+            background-color: rgba(255, 0, 0, 0.7);
+        }
+        
+        /* 震动动画 */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-10px); }
+            100% { transform: translateX(0); }
+        }
+        
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- 游戏主容器 -->
+    <div id="game-container">
+        <!-- 开始游戏按钮 -->
+        <button id="start-button">开始游戏</button>
+        <!-- 指令显示区域 -->
+        <div id="instruction"></div>
+        <!-- 分数显示区域 -->
+        <div id="score-display">得分: 0</div>
+        <!-- 计时器显示区域 -->
+        <div id="timer">剩余时间: 60秒</div>
+    </div>
+
+    <script>
+        // 游戏状态变量
+        let score = 0;          // 玩家得分
+        let gameTime = 60;      // 游戏时长(秒)
+        let gameInterval;        // 游戏计时器
+        let bubbleInterval;     // 气泡生成计时器
+        let instructionInterval; // 指令更换计时器
+        let isGameRunning = false; // 游戏是否进行中
+        
+        // 获取DOM元素
+        const startButton = document.getElementById('start-button');
+        const instruction = document.getElementById('instruction');
+        const scoreDisplay = document.getElementById('score-display');
+        const timer = document.getElementById('timer');
+        const gameContainer = document.getElementById('game-container');
+        const body = document.body;
+        
+        // 绑定开始游戏按钮点击事件
+        startButton.addEventListener('click', startGame);
+        
+        /**
+         * 开始游戏函数
+         */
+        function startGame() {
+            // 如果游戏已经在进行中，则不重复开始
+            if (isGameRunning) return;
+            
+            // 设置游戏状态
+            isGameRunning = true;
+            score = 0;          // 重置分数
+            gameTime = 60;      // 重置时间
+            
+            // 显示游戏元素
+            instruction.style.display = 'block';
+            scoreDisplay.style.display = 'block';
+            timer.style.display = 'block';
+            startButton.disabled = true; // 禁用开始按钮
+            
+            // 清除所有现有气泡
+            const existingBubbles = document.querySelectorAll('.bubble');
+            existingBubbles.forEach(bubble => bubble.remove());
+            
+            // 更新显示
+            updateScore();
+            updateTimer();
+            
+            // 显示随机指令
+            showRandomInstruction();
+            
+            // 设置气泡生成器，每秒生成一次
+            bubbleInterval = setInterval(createBubbles, 1000);
+            
+            // 设置游戏计时器，每秒更新一次
+            gameInterval = setInterval(() => {
+                gameTime--;
+                updateTimer();
+                
+                // 检查游戏是否结束
+                if (gameTime <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        /**
+         * 结束游戏函数
+         */
+        function endGame() {
+            // 设置游戏状态
+            isGameRunning = false;
+            
+            // 清除所有计时器
+            clearInterval(gameInterval);
+            clearInterval(bubbleInterval);
+            clearInterval(instructionInterval);
+            
+            // 更新指令显示为最终得分
+            instruction.textContent = "游戏结束! 最终得分: " + score;
+            
+            // 重置开始按钮
+            startButton.disabled = false;
+            startButton.textContent = "再来一次";
+        }
+        
+        /**
+         * 更新分数显示
+         */
+        function updateScore() {
+            scoreDisplay.textContent = "得分: " + score;
+        }
+        
+        /**
+         * 更新计时器显示
+         */
+        function updateTimer() {
+            timer.textContent = "剩余时间: " + gameTime + "秒";
+        }
+        
+        /**
+         * 显示随机指令
+         */
+        function showRandomInstruction() {
+            // 四种可能的指令
+            const instructions = [
+                "请点击黄色气泡",
+                "请点击红色气泡",
+                "不要点黄色气泡",
+                "不要点红色气泡"
+            ];
+            
+            // 随机选择一种指令
+            const randomIndex = Math.floor(Math.random() * instructions.length);
+            instruction.textContent = instructions[randomIndex];
+            
+            // 如果游戏仍在进行，5秒后再次更换指令
+            if (isGameRunning) {
+                instructionInterval = setTimeout(showRandomInstruction, 5000); // 5秒更换一次
+            }
+        }
+        
+        /**
+         * 创建气泡组(2黄2红)
+         */
+        function createBubbles() {
+            // 创建2个黄色气泡
+            for (let i = 0; i < 2; i++) {
+                createBubble('yellow');
+            }
+            
+            // 创建2个红色气泡
+            for (let i = 0; i < 2; i++) {
+                createBubble('red');
+            }
+        }
+        
+        /**
+         * 创建单个气泡
+         * @param {string} color - 气泡颜色('yellow'或'red')
+         */
+        function createBubble(color) {
+            // 创建气泡元素
+            const bubble = document.createElement('div');
+            bubble.className = `bubble ${color}-bubble`;
+            
+            // 设置随机大小(30px到60px)
+            const size = Math.floor(Math.random() * 31) + 30;
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            
+            // 设置随机水平位置(在底部)
+            const xPos = Math.floor(Math.random() * (window.innerWidth - size));
+            bubble.style.left = `${xPos}px`;
+            bubble.style.bottom = `0px`;
+            
+            // 添加到游戏容器
+            gameContainer.appendChild(bubble);
+            
+            // 设置上浮速度(7-12秒到达顶部)
+            const floatSpeed = Math.random() * 7 + 5;
+            const animationDuration = floatSpeed;
+            
+            // 设置上浮动画
+            bubble.style.transition = `bottom ${floatSpeed}s linear`;
+            
+            // 开始动画(使用setTimeout确保样式已应用)
+            setTimeout(() => {
+                bubble.style.bottom = `${window.innerHeight}px`;
+            }, 10);
+            
+            // 点击事件处理
+            bubble.addEventListener('click', () => {
+                handleBubbleClick(color); // 处理点击
+                bubble.remove();           // 移除被点击的气泡
+            });
+            
+            // 设置气泡自动移除(动画结束后)
+            setTimeout(() => {
+                if (bubble.parentNode) {
+                    bubble.remove();
+                }
+            }, floatSpeed * 1000);
+        }
+        
+        /**
+         * 处理气泡点击
+         * @param {string} color - 被点击的气泡颜色
+         */
+        function handleBubbleClick(color) {
+            // 获取当前指令内容
+            const currentInstruction = instruction.textContent;
+            let isCorrect = false;
+            
+            // 检查点击是否正确
+            switch(currentInstruction) {
+                case "请点击黄色气泡":
+                    isCorrect = (color === "yellow");
+                    break;
+                case "请点击红色气泡":
+                    isCorrect = (color === "red");
+                    break;
+                case "不要点黄色气泡":
+                    isCorrect = (color === "red");
+                    break;
+                case "不要点红色气泡":
+                    isCorrect = (color === "yellow");
+                    break;
+            }
+            
+            if (isCorrect) {
+                // 正确点击，加1分
+                score++;
+                updateScore();
+            } else {
+                // 错误点击，减1分(不低于0)
+                score = Math.max(0, score - 1);
+                updateScore();
+                
+                // 触发震动效果
+                shakeScreen();
+            }
+        }
+        
+        /**
+         * 屏幕震动效果
+         */
+        function shakeScreen() {
+            // 添加震动类
+            body.classList.add('shake');
+            
+            // 0.3秒后移除震动类
+            setTimeout(() => {
+                body.classList.remove('shake');
+            }, 300);
+        }
+    </script>
+</body>
+</html>
